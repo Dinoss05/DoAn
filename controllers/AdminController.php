@@ -108,17 +108,20 @@ class AdminController extends Controller {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $lessonId = (int)($_POST['lesson_id'] ?? 0);
+            $mode = $_POST['mode'] ?? 'both';
             $text = trim($_POST['question_text'] ?? '');
             $a = trim($_POST['option_a'] ?? '');
             $b = trim($_POST['option_b'] ?? '');
             $c = trim($_POST['option_c'] ?? '');
             $d = trim($_POST['option_d'] ?? '');
             $correct = $_POST['correct_option'] ?? '';
+            $vocabulary = trim($_POST['vocabulary'] ?? '');
+            $hint = trim($_POST['hint'] ?? '');
             $exp = trim($_POST['explanation'] ?? '');
             $id = !empty($_POST['question_id']) ? (int)$_POST['question_id'] : null;
 
-            if ($lessonId > 0 && $text && $a && $b && $c && $d && in_array($correct, ['A', 'B', 'C', 'D'])) {
-                $qModel->save($lessonId, $text, $a, $b, $c, $d, $correct, $exp, $id);
+            if ($lessonId > 0 && $text && $a && $b && $c && $d && in_array($correct, ['A', 'B', 'C', 'D'], true) && in_array($mode, ['practice', 'exam', 'both'], true)) {
+                $qModel->save($lessonId, $text, $a, $b, $c, $d, $correct, $exp, $mode, $hint ?: null, $vocabulary ?: null, $id);
                 $_SESSION['flash_success'] = $id ? "Cập nhật câu hỏi thành công!" : "Thêm câu hỏi mới thành công!";
             } else {
                 $_SESSION['flash_error'] = "Vui lòng nhập đầy đủ nội dung câu hỏi, 4 đáp án A/B/C/D và chọn đáp án đúng.";

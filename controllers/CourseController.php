@@ -38,26 +38,31 @@ class CourseController extends Controller {
         if (!$lesson) die("Bài học không tồn tại.");
 
         $this->lessonModel->markProgress($_SESSION['user']['user_id'], $lessonId, 'in_progress');
-        $questions = $this->questionModel->getByLesson($lessonId);
-        $this->render('student/lesson_detail', ['lesson' => $lesson, 'hasQuiz' => count($questions) > 0]);
+        $practiceQuestions = $this->questionModel->getPracticeByLesson($lessonId);
+        $this->render('student/lesson_detail', [
+            'lesson' => $lesson,
+            'hasQuiz' => count($practiceQuestions) > 0
+        ]);
     }
 
-    // Luyện tập cuối bài học (Không đếm giờ)
+    // Bài luyện tập cuối bài học (Có hướng dẫn, từ vựng, gợi ý; không đếm giờ)
     public function quiz() {
         $this->requireLogin();
         $lessonId = (int)($_GET['id'] ?? 0);
         $lesson = $this->lessonModel->findById($lessonId);
-        $questions = $this->questionModel->getByLesson($lessonId);
-        if (!$lesson || empty($questions)) die("Bài tập không khả dụng.");
+        $questions = $this->questionModel->getPracticeByLesson($lessonId);
+        if (!$lesson || empty($questions)) die("Bài luyện tập không khả dụng cho bài học này.");
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->gradeAndRender($questions, $lesson['title'], $lessonId, $lesson['course_id'], true);
+            $this->gradeAndRender($questions, 'Luyện tập: ' . $lesson['title'], $lessonId, $lesson['course_id'], true);
             return;
         }
 
         $this->render('student/quiz', [
             'quizTitle' => 'Luyện tập: ' . $lesson['title'],
+            'lesson' => $lesson,
             'questions' => $questions,
+            'mode' => 'practice',
             'isTimed' => false
         ]);
     }
@@ -70,7 +75,7 @@ class CourseController extends Controller {
         $this->render('student/exams', ['courses' => $courses, 'history' => $history]);
     }
 
-    // Làm bài kiểm tra tính giờ (Có đồng hồ đếm ngược)
+    // Bài kiểm tra đánh giá & áp dụng kiến thức (Có đồng hồ đếm ngược, không hiện gợi ý/từ vựng hỗ trợ)
     public function takeExam() {
         $this->requireLogin();
         $courseId = (int)($_GET['course_id'] ?? 0);
@@ -78,16 +83,16 @@ class CourseController extends Controller {
         if ($courseId > 0) {
             $course = $this->courseModel->findById($courseId);
             if (!$course) die("Đề kiểm tra không tồn tại.");
-            $questions = $this->questionModel->getByCourse($courseId, 15);
-            $title = "Kiểm tra tổng hợp: " . $course['title'];
+            $questions = $this->questionModel->getExamByCourse($courseId, 15);
+            $title = "Bài kiểm tra áp dụng: " . $course['title'];
             $duration = 600; // 10 phút
         } else {
-            $questions = $this->questionModel->getRandomAll(20);
-            $title = "Đề kiểm tra tổng hợp kiến thức chung (20 câu)";
+            $questions = $this->questionModel->getExamRandomAll(20);
+            $title = "Bài kiểm tra tổng hợp kiến thức (20 câu)";
             $duration = 900; // 15 phút
         }
 
-        if (empty($questions)) die("Chưa có đủ câu hỏi cho bài kiểm tra này.");
+        if (empty($questions)) die("Chưa có đủ câu hỏi kiểm tra cho mục này.");
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $examQuestions = $_SESSION['current_exam_questions'] ?? $questions;
@@ -101,6 +106,7 @@ class CourseController extends Controller {
         $this->render('student/quiz', [
             'quizTitle' => $title,
             'questions' => $questions,
+            'mode' => 'exam',
             'isTimed' => true,
             'durationSeconds' => $duration
         ]);
